@@ -1,0 +1,503 @@
+---
+title: "Bellabeat"
+author: "Beth_Scroggs"
+date: "2024-04-13"
+output: html_document
+---
+
+```{r install packages, eval=FALSE}
+install.packages("tidyverse")
+install.packages("readr")
+install.packages("skimr")
+install.packages("lubridate")
+install.packages("janitor")
+install.packages("stringr")
+```
+```{r echo=TRUE, results='hide', message=FALSE, warning=FALSE}
+library(tidyverse)
+library(readr)
+library(skimr)
+library(lubridate)
+library(janitor)
+library(stringr)
+```
+
+## Upload Data Frames from CSV Files
+
+```{r read_csv datasets, echo=TRUE, results='hide', message=FALSE, warning=FALSE}
+minute_sleep_3 <- read_csv("mturkfitbit_export_3.12.16-4.11.16/Fitabase Data 3.12.16-4.11.16/minuteSleep_merged.csv")
+hourly_step_3 <- read_csv("mturkfitbit_export_3.12.16-4.11.16/Fitabase Data 3.12.16-4.11.16/hourlySteps_merged.csv")
+hourly_intensity_3 <- read_csv("mturkfitbit_export_3.12.16-4.11.16/Fitabase Data 3.12.16-4.11.16/hourlyIntensities_merged.csv")
+daily_activity_3 <- read_csv("mturkfitbit_export_3.12.16-4.11.16/Fitabase Data 3.12.16-4.11.16/dailyActivity_merged.csv")
+daily_activity_4 <- read_csv("mturkfitbit_export_4.12.16-5.12.16/Fitabase Data 4.12.16-5.12.16/dailyActivity_merged.csv")
+hourly_intensity_4 <- read_csv("mturkfitbit_export_4.12.16-5.12.16/Fitabase Data 4.12.16-5.12.16/hourlyIntensities_merged.csv")
+hourly_steps_4 <- read_csv("mturkfitbit_export_4.12.16-5.12.16/Fitabase Data 4.12.16-5.12.16/hourlySteps_merged.csv")
+minute_sleep_4 <- read_csv("mturkfitbit_export_4.12.16-5.12.16/Fitabase Data 4.12.16-5.12.16/minuteSleep_merged.csv")
+```
+
+## Add Rows to Combine Data
+Combine datasets to include data from 3.12.16-4.11.16 and 4.12.16-5.12.16 in the same tables
+
+```{r combine data to merge dates, echo=TRUE, eval=TRUE}
+daily_activity_3_4 <- rbind(daily_activity_3, daily_activity_4)
+hourly_intensity_3_4 <- rbind(hourly_intensity_3, hourly_intensity_4)
+hourly_step_3_4 <- rbind(hourly_step_3, hourly_steps_4)
+minute_sleep_3_4 <- rbind(minute_sleep_3, minute_sleep_4)
+```
+
+Count the number of rows before and after rbind() to confirm that the data was combined.
+
+```{r confirm row count activity, echo=TRUE}
+nrow(daily_activity_3)+nrow(daily_activity_4)
+nrow(daily_activity_3_4)
+```
+```{r confirm row count intensity, echo=TRUE}
+nrow(hourly_intensity_3)+nrow(hourly_intensity_4)
+nrow(hourly_intensity_3_4)
+```
+```{r confirm row count step, echo=TRUE}
+nrow(hourly_step_3)+nrow(hourly_steps_4)
+nrow(hourly_step_3_4)
+```
+```{r confirm row count sleep, echo=TRUE}
+nrow(minute_sleep_3)+nrow(minute_sleep_4)
+nrow(minute_sleep_3_4)
+```
+Confirmed row count as accurate.
+
+## Remove duplicates in data
+```{r}
+minute_sleep_3_4 <- minute_sleep_3_4[!duplicated(minute_sleep_3_4), ]
+daily_activity_3_4 <- daily_activity_3_4[!duplicated(daily_activity_3_4), ]
+hourly_intensity_3_4 <- hourly_intensity_3_4[!duplicated(hourly_intensity_3_4), ]
+hourly_step_3_4 <- hourly_step_3_4[!duplicated(hourly_step_3_4), ]
+```
+
+
+## Rename column names
+Because we intend to join data from multiple datasets in the future, the columns need unique names to make sure it is clear what the data relates to. 
+
+```{r rename_columns, eval=FALSE}
+hourly_step_3_4 <- rename(hourly_step_3_4, step_hour = ActivityHour)
+
+hourly_intensity_3_4 <- rename(hourly_intensity_3_4, intensity_hour = activity_hour)
+
+minute_sleep_3_4 <- rename(minute_sleep_3_4, sleep_minute = date, sleep_value = value)
+```
+
+
+## Clean Column Names
+
+```{r clean column names, eval=FALSE}
+daily_activity_3_4 <- clean_names(daily_activity_3_4)
+hourly_intensity_3_4 <- clean_names(hourly_intensity_3_4)
+hourly_step_3_4 <- clean_names(hourly_step_3_4)
+minute_sleep_3_4 <- clean_names(minute_sleep_3_4)
+```
+
+## Modify Data Types
+Create new column with date/date_time formated properly
+
+```{r format date_time, eval=FALSE}
+daily_activity_3_4$activity_date_format <- mdy(daily_activity_3_4$activity_date)
+hourly_intensity_3_4$intensity_hour_format <- mdy_hms(hourly_intensity_3_4$intensity_hour)
+hourly_step_3_4$hour_format <- mdy_hms(hourly_step_3_4$step_hour)
+minute_sleep_3_4$sleep_minute_format <- mdy_hms(minute_sleep_3_4$sleep_minute)
+```
+
+Change the data type of sleep_value from dbl to character
+```{r data type to chr, eval=FALSE, include=FALSE}
+minute_sleep_3_4$sleep_value <- as.character(minute_sleep_3_4$sleep_value)
+```
+
+
+## Modify minute_sleep_3_4 to have data grouped by hour
+First we need to create a column where the time has been rounded down to the nearest hour. This way we will be able to summerize data based on the hour it occured
+
+```{r create column with time rounded down to hour}
+minute_sleep_3_4$hour_format = floor_date(minute_sleep_3_4$sleep_minute_format, "1 hour")
+```
+
+```{r count sleep_value, eval=FALSE, include=FALSE}
+hourly_sleep <- aggregate(sleep_value ~ id + hour_format, data = minute_sleep_3_4, FUN = length)
+```
+
+## Separate Date from Time 
+
+```{r}
+hourly_sleep$sleep_time <- format(as.POSIXct(hourly_sleep$hour_format, format = "%Y:%m:%d %H:%M:%S"), "%H:%M:%S")
+hourly_sleep$sleep_date <- format(as.POSIXct(hourly_sleep$hour_format, format = "%Y:%m:%d %H:%M:%S"), "%Y-%m-%d")
+
+hourly_step_3_4$step_time <- format(as.POSIXct(hourly_step_3_4$hour_format, format = "%Y:%m:%d %H:%M:%S"), "%H:%M:%S")
+hourly_step_3_4$step_date <- format(as.POSIXct(hourly_step_3_4$hour_format, format = "%Y:%m:%d %H:%M:%S"), "%Y-%m-%d")
+
+hourly_intensity_3_4$intensity_time <- format(as.POSIXct(hourly_intensity_3_4$intensity_hour_format, format = "%Y:%m:%d %H:%M:%S"), "%H:%M:%S")
+hourly_intensity_3_4$intensity_date <- format(as.POSIXct(hourly_intensity_3_4$intensity_hour_format, format = "%Y:%m:%d %H:%M:%S"), "%Y-%m-%d")
+```
+
+## Plot Average Steps Taken by Hour
+
+```{r}
+ggplot(data = hourly_step_3_4 %>% 
+  group_by(step_time) %>% 
+  summarize(average_steps = mean(step_total)))+
+geom_col(mapping = aes(x = step_time, y=average_steps, fill=average_steps))+
+  labs(fill = "Avg Steps", title = "Average Steps Taken by Hour", x = "", y = "Average Steps")+
+  scale_fill_gradient(low = "gold", high = "salmon1")+
+  theme(axis.text = element_text(angle = 90))
+
+```
+
+## Plot Average No. Users Stepping by Hour
+
+
+```{r}
+hourly_step_3_4 %>%
+  mutate(step_date = as.Date(step_date)) %>%
+  mutate(being_used_steps = case_when(step_total > 0 ~ 1, TRUE ~ 0)) %>% 
+  group_by(step_time) %>%
+  summarize(avg_count_id = sum(being_used_steps) / as.numeric(max(step_date) - min(step_date))) %>% 
+     ggplot() +
+     geom_col(aes(x = step_time, y = avg_count_id, fill=avg_count_id))+
+  labs(fill = "Avg Users Awake", title = "Average No. of Users Awake by Hour", x = "", y = "Average No. Users Awake")+
+  scale_fill_gradient(low = "gold", high = "salmon1")+
+  theme(axis.text = element_text(angle = 90))
+```
+
+## Average No. Users Stepping
+
+```{r}
+step_user_summary <- hourly_step_3_4 %>% 
+mutate(step_date = as.Date(step_date)) %>% 
+group_by(step_date) %>% 
+summarize(count = n_distinct(id)) %>% 
+summarize(Avg_Users_Utilizing_Step_Feature_Per_Day = as.numeric(format(round(mean(count), 2))))
+
+step_user_summary$Percent_of_Total_Users <- format(round((step_user_summary$Avg_Users_Utilizing_Step_Feature_Per_Day/n_unique(daily_activity_3_4$id))*100, 2))
+
+
+head(step_user_summary)
+```
+
+
+## Plot Average No. of Users Sleeping by Hour
+
+```{r}
+hourly_sleep %>%
+     mutate(sleep_date = as.Date(sleep_date)) %>%
+     group_by(sleep_time) %>%
+     summarize(avg_count_id = n() / as.numeric(max(sleep_date) - min(sleep_date))) %>%
+     ggplot() +
+     geom_col(aes(x = sleep_time, y = avg_count_id, fill=avg_count_id))+
+  labs(fill = "Avg Users Sleeping", title = "Average No. of Users Sleeping by Hour", x = "", y = "Average No. Users Sleeping")+
+  scale_fill_gradient(low = "orchid3", high = "darkslateblue")+
+  theme(axis.text = element_text(angle = 90))
+
+```
+## Average No. Sleep-Users By Date
+
+```{r}
+sleep_user_summary <- hourly_sleep %>% 
+mutate(sleep_date = as.Date(sleep_date)) %>% 
+group_by(sleep_date) %>% 
+summarize(count = n_distinct(id)) %>% 
+summarize(Avg_Users_Utilizing_Sleep_Feature_Per_Day = as.numeric(format(round(mean(count), 2))))
+
+sleep_user_summary$Percent_of_Total_Users <- format(round((sleep_user_summary$Avg_Users_Utilizing_Sleep_Feature_Per_Day/n_unique(daily_activity_3_4$id))*100, 2))
+
+
+head(sleep_user_summary)
+```
+
+## Merge hourly_sleep dataframe and hourly_step dataframe into the same dataframe and calculate what sleep/step percentages for each hour to understand what the the user is doing at each hour of the day
+
+```{r merge hourly_sleep and hourly_step_3_4}
+sleep_step_merged <- merge(hourly_sleep, hourly_step_3_4, by=c("id","hour_format"), all=TRUE)
+```
+
+```{r eval=FALSE, include=TRUE}
+sleep_step_merged <- subset(sleep_step_merged, select = -c(step_date, step_time, step_hour, sleep_date, sleep_time) )
+```
+
+```{r}
+sleep_step_merged <- sleep_step_merged %>%
+  mutate(pct_sleep = case_when(sleep_step_merged$sleep_value > 0 & sleep_step_merged$step_total > 0 ~ (sleep_value/60)*100, sleep_step_merged$sleep_value > 0 & sleep_step_merged$step_total == 0 ~ 100, TRUE ~ 0))
+
+sleep_step_merged <- sleep_step_merged %>% 
+  mutate(pct_step = case_when(sleep_step_merged$step_total > 0 & sleep_step_merged$sleep_value >0 ~ 100-pct_sleep, sleep_step_merged$step_total > 0 & is.na(sleep_step_merged$sleep_value) ~ 100, TRUE ~ 0))
+
+sleep_step_merged <- sleep_step_merged %>% 
+  mutate(being_used = case_when(sleep_step_merged$pct_sleep > 0 | sleep_step_merged$pct_step > 0 ~ 1, TRUE ~ 0))
+
+sleep_step_merged$time <- format(as.POSIXct(sleep_step_merged$hour_format, format = "%Y:%m:%d %H:%M:%S"), "%H:%M:%S")
+
+sleep_step_merged$date <- format(as.POSIXct(sleep_step_merged$hour_format, format = "%Y:%m:%d %H:%M:%S"), "%Y-%m-%d")
+```
+
+## Create tables that show the average number of users at each hour of the day and what they are doing during each of those hours 
+
+```{r}
+avg_users <- sleep_step_merged %>% 
+  mutate(date = as.Date(date)) %>%
+  group_by(time) %>% 
+  summarize(avg_users = sum(being_used == 1) / as.numeric(max(date) - min(date)), avg_pct_sleep = sum(pct_sleep) / sum(being_used == 1), avg_pct_step = sum(pct_step) / sum(being_used == 1)) %>% 
+  mutate(total_pct = avg_pct_sleep + avg_pct_step)
+head(avg_users)
+```
+
+## Plot Average No Users by Hour diving fill based on the %sleep and %step
+
+```{r}
+ggplot(avg_users) +
+  geom_col(aes(x = time, y = avg_users, fill = "users"), position = "stack") +
+  geom_col(aes(x = time, y = avg_pct_sleep * avg_users / 100, fill = "sleep"), position = "stack") +
+  scale_fill_manual(name = "Activity", values = c("users" = "salmon1", "sleep" = "darkslateblue"), labels = c("sleep", "steps")) +
+  theme(axis.text = element_text(angle = 90))
+
+```
+
+## Create data from showing number of days used per id
+
+"Daily Use" = device used 96% or more of days
+"Regular Use" = device used 60% to 96% of days
+"Occasional Use" = device used 20% to 60% of days
+"Seldom Use" = device used 0% to 20% of days
+
+### Hours worn per day
+
+
+```{r}
+hr_per_day <- sleep_step_merged %>% 
+  mutate(date = as.Date(date)) %>%
+  group_by(id, date) %>% 
+  summarise(hr_used = sum(being_used))
+
+hr_per_day <- hr_per_day[-which(hr_per_day$hr_used == 0),]
+
+head(hr_per_day)
+```
+
+```{r}
+total_days = as.numeric(difftime(max(sleep_step_merged$date), min(sleep_step_merged$date)))
+
+dates_used <- hr_per_day %>% 
+  mutate(date = as.Date(date)) %>%
+  group_by(id) %>% 
+  summarise(days_used = n_distinct(date))
+
+dates_used <- dates_used %>% 
+  mutate(segment = case_when(
+           days_used >= 0.96 * total_days ~ "Daily", 
+           days_used >= 0.60 * total_days & days_used < 0.96 * total_days ~ "Regular", 
+           days_used >= 0.20 * total_days & days_used < 0.60 * total_days ~ "Occasional",
+           TRUE ~ "Seldom"))
+
+head(dates_used)
+```
+
+```{r}
+qty_users <- n_unique(daily_activity_3_4$id)
+
+usage_segment_pct <- dates_used %>% 
+  mutate(segment = factor(segment, levels=c("Daily", "Regular", "Occasional", "Seldom"))) %>%
+  group_by(segment) %>% 
+  summarise(percent = round((n()/qty_users)*100)) %>% 
+  mutate(label = paste(percent, "%", sep = ""))
+
+head(usage_segment_pct)
+```
+
+```{r}
+usage_segment_pct %>% 
+  ggplot(aes(x = "", y = percent, fill = segment))+
+  geom_bar(stat = "identity", width = 1, color = "white")+
+  coord_polar("y", start = 0)+
+  theme_void()+
+  ggtitle("Percent Frequency of Use") +
+  theme(plot.title = element_text(hjust = 0.5))+
+  geom_text(aes(label = label), position = position_stack(vjust = .6))+
+  scale_fill_manual(values = c("salmon1","goldenrod2","darkslateblue", "orchid3"))+
+  labs(fill = "")
+```
+
+
+
+## Create dataframe showing average daily usage 
+
+```{r}
+daily_usage_1 <- hr_per_day %>% 
+  mutate(date = as.Date(date)) %>% 
+  group_by(date) %>% 
+  summarize(no_users = n_distinct(id)) %>% 
+  mutate(weekday = factor(weekdays(date), levels=c("Monday", "Tuesday", "Wednesday", "Thursday", 
+"Friday", "Saturday", "Sunday"))) %>% 
+  group_by(weekday) %>% 
+  summarize(avg_weekday_users = sum(no_users)/n_distinct(date))
+
+print(daily_usage_1)
+```
+
+
+## Plot Days of Week vs. No. Users
+
+```{r}
+ggplot(daily_usage_1) +
+  geom_col(aes(x = weekday, y = avg_weekday_users), fill = "salmon1")+
+  labs(title = "Average Users Per Day of Week", x = "", y = "Avg No. Users")+
+  theme(axis.text = element_text(angle = 90))
+```
+We can learn from this graph that there does not appear to be any tends in which days of the week people wear their device. They are just as likely to wear it on the weekends as during the weekdays. 
+
+## Average hours worn per day
+
+"Always On" = device worn on average 22 or more hours per day
+"Usually On" = device worn between 16 and 22 hours per day
+"Sometimes On" = device worn between 8 and 16 hours per day
+"Rarely On" = device worn less than 8 hours per day 
+
+```{r}
+avg_hr_per_day <- hr_per_day %>% 
+  group_by(id) %>% 
+  summarize(avg_hrs_per_day = mean(hr_used))
+
+avg_hr_per_day <- avg_hr_per_day %>% 
+  mutate(segment = case_when(
+           avg_hrs_per_day >= 22 ~ "Always On", 
+           avg_hrs_per_day >= 16 & avg_hrs_per_day < 22 ~ "Usually On", 
+           avg_hrs_per_day >= 8 & avg_hrs_per_day < 16 ~ "Occationally On",
+           TRUE ~ "Rarely On"))
+
+head(avg_hr_per_day)
+```
+
+
+```{r}
+hrs_segment_pct <- avg_hr_per_day %>% 
+  mutate(segment = factor(segment, levels=c("Always On", "Usually On", "Occationally On", "Rarely On"))) %>%
+  group_by(segment) %>% 
+  summarise(percent = round((n()/qty_users)*100)) %>% 
+  mutate(label = paste(percent, "%", sep = ""))
+
+head(hrs_segment_pct)
+```
+
+```{r}
+hrs_segment_pct %>% 
+  ggplot(aes(x = "", y = percent, fill = segment))+
+  geom_bar(stat = "identity", width = 1, color = "white")+
+  coord_polar("y", start = 0)+
+  theme_void()+
+  ggtitle("Average Hours Wearing Device Each Day") +
+  theme(plot.title = element_text(hjust = 0.5))+
+  geom_text(aes(label = label), position = position_stack(vjust = .6))+
+  scale_fill_manual(values = c("salmon1","goldenrod2","darkslateblue", "orchid3"))+
+  labs(fill = "")
+```
+
+## Filter Hours Worn by High and Low Usage and Plot by segments
+
+```{r}
+usage_by_id <- merge(dates_used, avg_hr_per_day, by=c("id"), all=TRUE)
+
+daily_usage_by_id <- usage_by_id %>% 
+  filter(segment.x == "Daily")
+
+count_daily <- n_distinct(daily_usage_by_id$id)
+
+daily_usage_by_id <- daily_usage_by_id %>%
+  mutate(segment.y = factor(segment.y, levels=c("Always On", "Usually On", "Occationally On", "Rarely On"))) %>%
+  group_by(segment.y) %>% 
+  summarize(percent = round(n()/count_daily*100)) %>% 
+  mutate(label = paste(percent, "%", sep = ""))
+
+head(daily_usage_by_id)
+
+daily_usage_by_id %>% 
+  ggplot(aes(x = "", y = percent, fill = segment.y))+
+  geom_bar(stat = "identity", width = 1, color = "white")+
+  coord_polar("y", start = 0)+
+  theme_void()+
+  ggtitle("Average Hours Wearing Device Each Day for Daily Users") +
+  theme(plot.title = element_text(hjust = 0.5))+
+  geom_text(aes(label = label), position = position_stack(vjust = .6))+
+  scale_fill_manual(values = c("salmon1","goldenrod2","darkslateblue", "orchid3"))+
+  labs(fill = "")
+```
+
+```{r}
+reg_usage_by_id <- usage_by_id %>% 
+  filter(segment.x == "Regular")
+
+count_reg <- n_distinct(reg_usage_by_id$id)
+
+reg_usage_by_id <- reg_usage_by_id %>%
+  mutate(segment.y = factor(segment.y, levels=c("Always On", "Usually On", "Occationally On", "Rarely On"))) %>%
+  group_by(segment.y) %>% 
+  summarize(percent = round(n()/count_reg*100)) %>% 
+  mutate(label = paste(percent, "%", sep = ""))
+
+head(reg_usage_by_id)
+
+reg_usage_by_id %>% 
+  ggplot(aes(x = "", y = percent, fill = segment.y))+
+  geom_bar(stat = "identity", width = 1, color = "white")+
+  coord_polar("y", start = 0)+
+  theme_void()+
+  ggtitle("Average Hours Wearing Device Each Day for Regular Users") +
+  theme(plot.title = element_text(hjust = 0.5))+
+  geom_text(aes(label = label), position = position_stack(vjust = .6))+
+  scale_fill_manual(values = c("salmon1","goldenrod2","darkslateblue", "orchid3"))+
+  labs(fill = "")
+```
+
+```{r}
+occ_usage_by_id <- usage_by_id %>% 
+  filter(segment.x == "Occasional")
+
+count_occ <- n_distinct(occ_usage_by_id$id)
+
+occ_usage_by_id <- occ_usage_by_id %>%
+  mutate(segment.y = factor(segment.y, levels=c("Always On", "Usually On", "Occationally On", "Rarely On"))) %>%
+  group_by(segment.y) %>% 
+  summarize(percent = round(n()/count_occ*100)) %>% 
+  mutate(label = paste(percent, "%", sep = ""))
+
+head(occ_usage_by_id)
+
+occ_usage_by_id %>% 
+  ggplot(aes(x = "", y = percent, fill = segment.y))+
+  geom_bar(stat = "identity", width = 1, color = "white")+
+  coord_polar("y", start = 0)+
+  theme_void()+
+  ggtitle("Average Hours Wearing Device Each Day for Occational Users") +
+  theme(plot.title = element_text(hjust = 0.5))+
+  geom_text(aes(label = label), position = position_stack(vjust = .6))+
+  scale_fill_manual(values = c("salmon1","goldenrod2","darkslateblue", "orchid3"))+
+  labs(fill = "")
+```
+
+```{r}
+sel_usage_by_id <- usage_by_id %>% 
+  filter(segment.x == "Seldom")
+
+count_sel <- n_distinct(sel_usage_by_id$id)
+
+sel_usage_by_id <- sel_usage_by_id %>%
+  mutate(segment.y = factor(segment.y, levels=c("Always On", "Usually On", "Occationally On", "Rarely On"))) %>%
+  group_by(segment.y) %>% 
+  summarize(percent = round(n()/count_sel*100)) %>% 
+  mutate(label = paste(percent, "%", sep = ""))
+
+head(sel_usage_by_id)
+
+sel_usage_by_id %>% 
+  ggplot(aes(x = "", y = percent, fill = segment.y))+
+  geom_bar(stat = "identity", width = 1, color = "white")+
+  coord_polar("y", start = 0)+
+  theme_void()+
+  ggtitle("Average Hours Wearing Device Each Day for Seldom Users") +
+  theme(plot.title = element_text(hjust = 0.5))+
+  geom_text(aes(label = label), position = position_stack(vjust = .6))+
+  scale_fill_manual(values = c("salmon1","goldenrod2","darkslateblue", "orchid3"))+
+  labs(fill = "")
+```

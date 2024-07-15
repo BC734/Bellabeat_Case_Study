@@ -1,4 +1,4 @@
-Published rMarkdown available [here] (https://posit.cloud/content/8438188)
+Published rMarkdown available [here](https://posit.cloud/content/8438188)
 
 ---
 title: "Bellabeat"
@@ -6,6 +6,86 @@ author: "Beth_Scroggs"
 date: "2024-04-13"
 output: html_document
 ---
+
+# Bellabeat Case Study
+
+```{r logo, echo=FALSE, fig.align='center', out.width="500px"}
+knitr::include_graphics("bellabeat_logo.png")
+```
+
+# Table of Contents
+
+-   [1.0 Summary & Purpose](#1.0)
+-   [2.0 Prepare Data](#2.0)
+-   [3.0 Clean Data](#3.0)
+    -   [3.1 Install Packages & Open Libraries](#3.1)
+    -   [3.2 Upload Dataframes from CSV Files](#3.2)
+    -   [3.3 Combine Dataframes](#3.3)
+    -   [3.4 Clean Data](#3.4)
+    -   [3.5 Summarize minute_sleep_3_4 by Hour](#3.5)
+-   [4.0 Analyze Data](#4.0)
+    -   [4.1 Step Tracking Function](#4.1)
+    -   [4.2 Sleep Tracking Function](#4.2)
+    -   [4.3 Hour-by-Hour Device Utilization](#4.3)
+    -   [4.4 Average Daily Usage](#4.4)
+    -   [4.5 Segment Analysis](#4.5)
+        -   [4.5.1 Segment Days per Month Wearing Device](#4.5.1)
+        -   [4.5.2 Segment Hours per Day Wearing Device](#4.5.2)
+        -   [4.5.3 Filter by Segments](#4.5.3)
+        -   [4.5.4 Plot Segments](#4.5.4)
+-   [5.0 Recommendations](#5.0)
+
+# 1.0 Summary & Purpose {#1.0}
+
+Bellabeat is a high-tech company that focuses on the health and fitness needs of women. They have a range a products including their main focus: wearable fitness tracking technology.
+
+Through analyzing data of users of similar fitness trackers, Bellabeat hopes to discover growth opportunities. The results of this analysis will show how consumers are using their devices. Those discoveries will provide insight for the marketing team to grow Bellabeat sales.
+
+The Bellabeat app provides users with a wealth of information. Much of this information is available for free, but the true insights the app provides are only available through a subscription. Data that is available to users includes: activity, sleep, stress, menstual cycle, and mindfulness habits.
+
+Bellabeat has multiple streams of revenue:
+
+-   Wearable Technology
+
+    -   Ivy+, Leaf
+
+    -   \$99 - \$249
+
+-   App Subscription
+
+    -   \$9.99 per month
+
+-   Accessories
+
+    -   necklaces, clips, bracelets, charging stations
+
+    -   \$19 - \$29
+
+-   Non-Tech Fitness Items
+
+    -   yoga mat, menstrual cup
+
+    -   \$39 - \$59
+
+Former products no longer offered include Time wearable, Spring water bottle
+
+For the sake of this analysis we will focus on the sale and usage of the wearable technology, gaining insights into how people are already using their wearable tech. We will discover how these trends can be applied to Bellabeat's customers. From there, we will provide recommendations for how these trends can inform Bellabeat's marketing strategy.
+
+# 2.0 Prepare Data {#2.0}
+
+#### Data Used
+
+The data source for this analysis is FitBit Fitness Tracker Data. This is available for public use through Kaggle. The data is sources from the FitBit usage of 30 users between 03-12-2016 through 05-12-2016. Multiple spreadsheets compile this database which provides hourly or minute-level output for physical exertion, steps, and sleep.
+
+#### Data Limitations
+
+The data available is limited for our application in a few ways. First, this includes a very small sample size of only 30 users. This will limit the reliability of our analysis since it's not a large enough sample size to adequately represent the population. However, the analysis conducted here could easily be done on a larger, more comprehensive dataset, if one becomes available. Second, the data is limited in timeframe. This data only spans two months in 2016. This is not a long enough time for meaningful conclusions to be made. Additionally, smart device usage has changed in the years since 2016 and updated data would provide better insights. Third, we have no demographic information about the sample. Since Bellabeat focuses on the female consumer, it would be much more beneficial if we could sort our data based on gender demographics to produce more meaningful insights.
+
+With an understanding of these limitations, we will move forward with the analysis. In the event we can access data that is more complete - larger in size, covers a longer time period, and ensure proper demographic coverage - I recommend that we redo this analysis with the updated data.
+
+# 3.0 Clean Data {#3.0}
+
+## 3.1 Install Packages & Open Libraries {#3.1}
 
 ```{r install packages, eval=FALSE}
 install.packages("tidyverse")
@@ -15,7 +95,8 @@ install.packages("lubridate")
 install.packages("janitor")
 install.packages("stringr")
 ```
-```{r echo=TRUE, results='hide', message=FALSE, warning=FALSE}
+
+```{r library, echo=TRUE, results='hide', message=FALSE, warning=FALSE}
 library(tidyverse)
 library(readr)
 library(skimr)
@@ -24,122 +105,128 @@ library(janitor)
 library(stringr)
 ```
 
-## Upload Data Frames from CSV Files
+## 3.2 Upload Datframes from CSV Files {#3.2}
 
-```{r read_csv datasets, echo=TRUE, results='hide', message=FALSE, warning=FALSE}
+For our analysis, we will focus on the data available through these 4 dataframes.
+
+```{r upload dataframes, echo=TRUE, results='hide', message=FALSE, warning=FALSE}
 minute_sleep_3 <- read_csv("mturkfitbit_export_3.12.16-4.11.16/Fitabase Data 3.12.16-4.11.16/minuteSleep_merged.csv")
 hourly_step_3 <- read_csv("mturkfitbit_export_3.12.16-4.11.16/Fitabase Data 3.12.16-4.11.16/hourlySteps_merged.csv")
-hourly_intensity_3 <- read_csv("mturkfitbit_export_3.12.16-4.11.16/Fitabase Data 3.12.16-4.11.16/hourlyIntensities_merged.csv")
-daily_activity_3 <- read_csv("mturkfitbit_export_3.12.16-4.11.16/Fitabase Data 3.12.16-4.11.16/dailyActivity_merged.csv")
-daily_activity_4 <- read_csv("mturkfitbit_export_4.12.16-5.12.16/Fitabase Data 4.12.16-5.12.16/dailyActivity_merged.csv")
-hourly_intensity_4 <- read_csv("mturkfitbit_export_4.12.16-5.12.16/Fitabase Data 4.12.16-5.12.16/hourlyIntensities_merged.csv")
 hourly_steps_4 <- read_csv("mturkfitbit_export_4.12.16-5.12.16/Fitabase Data 4.12.16-5.12.16/hourlySteps_merged.csv")
 minute_sleep_4 <- read_csv("mturkfitbit_export_4.12.16-5.12.16/Fitabase Data 4.12.16-5.12.16/minuteSleep_merged.csv")
 ```
 
-## Add Rows to Combine Data
-Combine datasets to include data from 3.12.16-4.11.16 and 4.12.16-5.12.16 in the same tables
+## 3.3 Combine Dataframes {#3.3}
 
-```{r combine data to merge dates, echo=TRUE, eval=TRUE}
-daily_activity_3_4 <- rbind(daily_activity_3, daily_activity_4)
-hourly_intensity_3_4 <- rbind(hourly_intensity_3, hourly_intensity_4)
+The dataframes are separated by date. For purposes of our analysis and to have a longer time frame to consider, we will combine datasets to include data from 3.12.16-4.11.16 and 4.12.16-5.12.16 in the same dataframe.
+
+Since the columns are already identical, we can just use rbind() to combine dataframes
+
+```{r combine data to merge dates, echo=TRUE, results='hide', message=FALSE, warning=FALSE}
 hourly_step_3_4 <- rbind(hourly_step_3, hourly_steps_4)
 minute_sleep_3_4 <- rbind(minute_sleep_3, minute_sleep_4)
 ```
 
-Count the number of rows before and after rbind() to confirm that the data was combined.
+## 3.4 Clean Data {#3.4}
 
-```{r confirm row count activity, echo=TRUE}
-nrow(daily_activity_3)+nrow(daily_activity_4)
-nrow(daily_activity_3_4)
-```
-```{r confirm row count intensity, echo=TRUE}
-nrow(hourly_intensity_3)+nrow(hourly_intensity_4)
-nrow(hourly_intensity_3_4)
-```
-```{r confirm row count step, echo=TRUE}
-nrow(hourly_step_3)+nrow(hourly_steps_4)
-nrow(hourly_step_3_4)
-```
-```{r confirm row count sleep, echo=TRUE}
-nrow(minute_sleep_3)+nrow(minute_sleep_4)
-nrow(minute_sleep_3_4)
-```
-Confirmed row count as accurate.
+#### Remove duplicates in data
 
-## Remove duplicates in data
-```{r}
+```{r remove duplicates, echo=TRUE, results='hide', message=FALSE, warning=FALSE}
 minute_sleep_3_4 <- minute_sleep_3_4[!duplicated(minute_sleep_3_4), ]
-daily_activity_3_4 <- daily_activity_3_4[!duplicated(daily_activity_3_4), ]
-hourly_intensity_3_4 <- hourly_intensity_3_4[!duplicated(hourly_intensity_3_4), ]
 hourly_step_3_4 <- hourly_step_3_4[!duplicated(hourly_step_3_4), ]
 ```
 
+#### Rename column names
 
-## Rename column names
-Because we intend to join data from multiple datasets in the future, the columns need unique names to make sure it is clear what the data relates to. 
+Because we intend to join data from multiple dataframes in the future, the columns need unique names to make sure it is clear what the data relates to.
 
-```{r rename_columns, eval=FALSE}
+```{r rename_columns, echo=TRUE, results='hide', message=FALSE, warning=FALSE}
 hourly_step_3_4 <- rename(hourly_step_3_4, step_hour = ActivityHour)
-
-hourly_intensity_3_4 <- rename(hourly_intensity_3_4, intensity_hour = activity_hour)
-
 minute_sleep_3_4 <- rename(minute_sleep_3_4, sleep_minute = date, sleep_value = value)
 ```
 
+#### Clean Column Names
 
-## Clean Column Names
-
-```{r clean column names, eval=FALSE}
-daily_activity_3_4 <- clean_names(daily_activity_3_4)
-hourly_intensity_3_4 <- clean_names(hourly_intensity_3_4)
+```{r clean column names, echo=TRUE, results='hide', message=FALSE, warning=FALSE}
 hourly_step_3_4 <- clean_names(hourly_step_3_4)
 minute_sleep_3_4 <- clean_names(minute_sleep_3_4)
 ```
 
-## Modify Data Types
-Create new column with date/date_time formated properly
+#### Modify Data Types
 
-```{r format date_time, eval=FALSE}
-daily_activity_3_4$activity_date_format <- mdy(daily_activity_3_4$activity_date)
-hourly_intensity_3_4$intensity_hour_format <- mdy_hms(hourly_intensity_3_4$intensity_hour)
+Create new column with date/date_time formatted POSIX
+
+```{r format date_time, echo=TRUE, results='hide', message=FALSE, warning=FALSE}
 hourly_step_3_4$hour_format <- mdy_hms(hourly_step_3_4$step_hour)
 minute_sleep_3_4$sleep_minute_format <- mdy_hms(minute_sleep_3_4$sleep_minute)
 ```
 
 Change the data type of sleep_value from dbl to character
-```{r data type to chr, eval=FALSE, include=FALSE}
+
+```{r sleep_value to chr, echo=TRUE, results='hide', message=FALSE, warning=FALSE}
 minute_sleep_3_4$sleep_value <- as.character(minute_sleep_3_4$sleep_value)
 ```
 
+#### View Tibble of Cleaned Dataframes
 
-## Modify minute_sleep_3_4 to have data grouped by hour
-First we need to create a column where the time has been rounded down to the nearest hour. This way we will be able to summerize data based on the hour it occured
+```{r view cleaneded data, echo=TRUE, message=FALSE, warning=FALSE}
+head(minute_sleep_3_4)
+head(hourly_step_3_4)
+```
 
-```{r create column with time rounded down to hour}
+## 3.5 Summarize minute_sleep_3_4 by Hour {#3.5}
+
+#### Modify minute_sleep_3_4 to have data grouped by hour
+
+First we need to create a column where the time has been rounded down to the nearest hour. This way we will be able to summarize data based on the hour it occurred.
+
+```{r round time to hour, echo=TRUE, results='hide', message=FALSE, warning=FALSE}
 minute_sleep_3_4$hour_format = floor_date(minute_sleep_3_4$sleep_minute_format, "1 hour")
 ```
 
-```{r count sleep_value, eval=FALSE, include=FALSE}
-hourly_sleep <- aggregate(sleep_value ~ id + hour_format, data = minute_sleep_3_4, FUN = length)
+```{r count sleep_value, echo=TRUE, results='hide', message=FALSE, warning=FALSE}
+hourly_sleep <- minute_sleep_3_4 %>% 
+  group_by(id, hour_format) %>% 
+  summarize(sleep_value = n())
 ```
 
-## Separate Date from Time 
+#### Separate Date from Time
 
-```{r}
+```{r separate date and time, echo=TRUE, results='hide', message=FALSE, warning=FALSE}
 hourly_sleep$sleep_time <- format(as.POSIXct(hourly_sleep$hour_format, format = "%Y:%m:%d %H:%M:%S"), "%H:%M:%S")
 hourly_sleep$sleep_date <- format(as.POSIXct(hourly_sleep$hour_format, format = "%Y:%m:%d %H:%M:%S"), "%Y-%m-%d")
 
 hourly_step_3_4$step_time <- format(as.POSIXct(hourly_step_3_4$hour_format, format = "%Y:%m:%d %H:%M:%S"), "%H:%M:%S")
 hourly_step_3_4$step_date <- format(as.POSIXct(hourly_step_3_4$hour_format, format = "%Y:%m:%d %H:%M:%S"), "%Y-%m-%d")
-
-hourly_intensity_3_4$intensity_time <- format(as.POSIXct(hourly_intensity_3_4$intensity_hour_format, format = "%Y:%m:%d %H:%M:%S"), "%H:%M:%S")
-hourly_intensity_3_4$intensity_date <- format(as.POSIXct(hourly_intensity_3_4$intensity_hour_format, format = "%Y:%m:%d %H:%M:%S"), "%Y-%m-%d")
 ```
 
-## Plot Average Steps Taken by Hour
+```{r view hourly_sleep, echo=TRUE, message=FALSE, warning=FALSE}
+head(hourly_sleep)
+```
 
-```{r}
+The dataframe hourly_sleep will be used later in our analysis.
+
+# 4.0 Analyze Data {#4.0}
+
+Our focus of this analysis is to determine how current customers of a similar product are utilizing the device. To do this, we will look at when and how often customers are using the various functions that the device provides:
+
+-   Activity
+
+-   Sleep
+
+-   Hr by Hr Usage - Step vs. Sleep
+
+-   Frequency of Use
+
+## 4.1 Step Tracking Function {#4.1}
+
+First we will look at how frequently the step function is utilized by consumers. This will give us a picture of how frequently people are wearing their device and what they are doing while they have it on.
+
+#### Plot Average Steps Taken by Hour
+
+This plot will show us the average number of steps being taken each hour.
+
+```{r plot steps per hour}
 ggplot(data = hourly_step_3_4 %>% 
   group_by(step_time) %>% 
   summarize(average_steps = mean(step_total)))+
@@ -150,10 +237,14 @@ geom_col(mapping = aes(x = step_time, y=average_steps, fill=average_steps))+
 
 ```
 
-## Plot Average No. Users Stepping by Hour
+\
+From this plot, we can see that the majority of steps are taken between 8am and 8pm. We also see a spike around noon-1pm and 6pm-7pm. This shows us that a lot of people are getting up and moving around typical lunch time and dinner time.
 
+#### Plot Average No. Users Stepping by Hour
 
-```{r}
+Because we want to analyze the usage of the device, more interesting than the step count per hour is the number of people using the device each hour. Through this plot, we will be able to see what hours people are wearing their device and taking steps. This will give us an idea of what hours of the day the users are awake.
+
+```{r plot users per hour}
 hourly_step_3_4 %>%
   mutate(step_date = as.Date(step_date)) %>%
   mutate(being_used_steps = case_when(step_total > 0 ~ 1, TRUE ~ 0)) %>% 
@@ -166,25 +257,38 @@ hourly_step_3_4 %>%
   theme(axis.text = element_text(angle = 90))
 ```
 
-## Average No. Users Stepping
+\
+From this plot we can see that, on average, there are customer wearing their device and taking steps every hour of the day. Most users are awake between 7am and 10pm. we can see a consistent growth of customers utilizing thier device for steps between 6am and 12pm. From this plot, we cannot know if this is due to an increase in customers waking up and switching their activity from sleep to steps or an increase in users putting thier device on.
 
-```{r}
+Further analysis will show us if people are waking up during this time, or choosing to put their device on for the day.
+
+#### Average No. Users Stepping per Day
+
+```{r step users per day}
 step_user_summary <- hourly_step_3_4 %>% 
 mutate(step_date = as.Date(step_date)) %>% 
 group_by(step_date) %>% 
 summarize(count = n_distinct(id)) %>% 
 summarize(Avg_Users_Utilizing_Step_Feature_Per_Day = as.numeric(format(round(mean(count), 2))))
 
-step_user_summary$Percent_of_Total_Users <- format(round((step_user_summary$Avg_Users_Utilizing_Step_Feature_Per_Day/n_unique(daily_activity_3_4$id))*100, 2))
+step_user_summary$Percent_of_Total_Users <- format(round((step_user_summary$Avg_Users_Utilizing_Step_Feature_Per_Day/n_unique(hourly_step_3_4$id))*100, 2))
 
 
 head(step_user_summary)
 ```
 
+\
+On average, about 89% of users wear their device while awake per day. For our sample size, this was 31 users.
 
-## Plot Average No. of Users Sleeping by Hour
+## 4.2 Sleep Tracking Function {#4.2}
 
-```{r}
+The second major area of analysis is the sleep funtion. We want to see how customers are utilizing the sleep function of thier FitBit device. Knowing this will give the marketing team helpful insights into which aspects of the device people find most useful.
+
+#### Plot Average No. of Users Sleeping by Hour
+
+This plot will show us the average number of users who are sleeping each hour of the day. From this we can see how frequently our customer wear their device while sleeping.
+
+```{r plot sleep users per hour}
 hourly_sleep %>%
      mutate(sleep_date = as.Date(sleep_date)) %>%
      group_by(sleep_time) %>%
@@ -196,32 +300,47 @@ hourly_sleep %>%
   theme(axis.text = element_text(angle = 90))
 
 ```
-## Average No. Sleep-Users By Date
 
-```{r}
+\
+Immediately we notice that the average number of users who are sleeping range from about 1 to about 12.5. This is much lower than the average number of users who are stepping at each hour. We can see that people wear their device while sleeping a lot less than they wear it during the day when they are stepping.
+
+Additionally we see that the majority of users who are using the device for sleep tracking are doing so between 11pm and 7am.
+
+#### Average No. Sleep-Users
+
+Let's look into how many customer are using the sleep-tracking fuction.
+
+```{r sleep users by date}
 sleep_user_summary <- hourly_sleep %>% 
 mutate(sleep_date = as.Date(sleep_date)) %>% 
 group_by(sleep_date) %>% 
 summarize(count = n_distinct(id)) %>% 
 summarize(Avg_Users_Utilizing_Sleep_Feature_Per_Day = as.numeric(format(round(mean(count), 2))))
 
-sleep_user_summary$Percent_of_Total_Users <- format(round((sleep_user_summary$Avg_Users_Utilizing_Sleep_Feature_Per_Day/n_unique(daily_activity_3_4$id))*100, 2))
+sleep_user_summary$Percent_of_Total_Users <- format(round((sleep_user_summary$Avg_Users_Utilizing_Sleep_Feature_Per_Day/n_unique(hourly_step_3_4$id))*100, 2))
 
 
 head(sleep_user_summary)
 ```
 
-## Merge hourly_sleep dataframe and hourly_step dataframe into the same dataframe and calculate what sleep/step percentages for each hour to understand what the the user is doing at each hour of the day
+\
+On average, about 41% of users wear their device while sleeping per day. For our sample size, this was about 14 users.
 
-```{r merge hourly_sleep and hourly_step_3_4}
+## 4.3 Hour By Hour Device Utilization {#4.3}
+
+Since the number of customers using the device to sleep track is much lower than those using it to step track, let's take a look at those numbers together in the same plot. This will show us a clearer picture of how many people are using it each hour throughout the day and what they are using it for.
+
+#### Merge hourly_sleep and hourly_step dataframes
+
+Merge hourly_sleep dataframe and hourly_step dataframe into the same dataframe and calculate sleep/step percentages for each hour to understand what the the user is doing at each hour of the day.
+
+If a user only has sleep data then that hour will be 100% sleeping. If a user has no sleep data for an hour, and they do have step data, then they will be 100% stepping. If an hour is spent partially asleep and partially stepping, we will calculate what percentage of the hour is spent sleeping to determine a percentage split for that hour between the two utilizations.
+
+```{r create sleep_step_merged}
 sleep_step_merged <- merge(hourly_sleep, hourly_step_3_4, by=c("id","hour_format"), all=TRUE)
-```
 
-```{r eval=FALSE, include=TRUE}
 sleep_step_merged <- subset(sleep_step_merged, select = -c(step_date, step_time, step_hour, sleep_date, sleep_time) )
-```
 
-```{r}
 sleep_step_merged <- sleep_step_merged %>%
   mutate(pct_sleep = case_when(sleep_step_merged$sleep_value > 0 & sleep_step_merged$step_total > 0 ~ (sleep_value/60)*100, sleep_step_merged$sleep_value > 0 & sleep_step_merged$step_total == 0 ~ 100, TRUE ~ 0))
 
@@ -236,9 +355,11 @@ sleep_step_merged$time <- format(as.POSIXct(sleep_step_merged$hour_format, forma
 sleep_step_merged$date <- format(as.POSIXct(sleep_step_merged$hour_format, format = "%Y:%m:%d %H:%M:%S"), "%Y-%m-%d")
 ```
 
-## Create tables that show the average number of users at each hour of the day and what they are doing during each of those hours 
+#### Group and Summarize Merged Data
 
-```{r}
+Create dataframe that show the average number of users at each hour of the day and what they are doing during each of those hours
+
+```{r create avg_users dataframe}
 avg_users <- sleep_step_merged %>% 
   mutate(date = as.Date(date)) %>%
   group_by(time) %>% 
@@ -247,28 +368,34 @@ avg_users <- sleep_step_merged %>%
 head(avg_users)
 ```
 
-## Plot Average No Users by Hour diving fill based on the %sleep and %step
+#### Plot Average User by Hour for Both Steps and Sleep
 
-```{r}
+Plot Average No Users by Hour diving fill based on the %sleep and %step
+
+```{r plot avg_users dataframe}
 ggplot(avg_users) +
   geom_col(aes(x = time, y = avg_users, fill = "users"), position = "stack") +
   geom_col(aes(x = time, y = avg_pct_sleep * avg_users / 100, fill = "sleep"), position = "stack") +
   scale_fill_manual(name = "Activity", values = c("users" = "salmon1", "sleep" = "darkslateblue"), labels = c("sleep", "steps")) +
-  theme(axis.text = element_text(angle = 90))
+  theme(axis.text = element_text(angle = 90)) +
+  labs(title = "Average Users by Hour", x = "", y = "Avg Users")
 
 ```
 
-## Create data from showing number of days used per id
+\
+This plot shows us that the number of users increases during the day. We can clearly see that more people are choosing to wear their device during the day than at night. We can also see that as people wake up and switch from sleeping to stepping, that also contributes to the increase in users between 6am and noon.
 
-"Daily Use" = device used 96% or more of days
-"Regular Use" = device used 60% to 96% of days
-"Occasional Use" = device used 20% to 60% of days
-"Seldom Use" = device used 0% to 20% of days
+We can tell that the step tracking is utilized more than sleep tracking. We can't tell from this graph why that is. Some possibilities could include: low interest in sleep data, comfort level of wearing the device while sleeping, forgetting to put it back on after charging, the battery dying before or during sleep.
 
-### Hours worn per day
+## 4.4 Average Daily Usage {#4.4}
 
+Let's investigate how usage changes based on the day of the week. It's possible that the weekends receive a different level of usage thank the week days. Another possibility is that Mondays start off with a lot of usage and it tapers off during the week.
 
-```{r}
+#### Hours Worn Per Day
+
+First, I'll create a dataframe showing the number of hours the device is used for each user ID and each date.
+
+```{r create hr_per_day dataframe, warning=FALSE}
 hr_per_day <- sleep_step_merged %>% 
   mutate(date = as.Date(date)) %>%
   group_by(id, date) %>% 
@@ -279,7 +406,59 @@ hr_per_day <- hr_per_day[-which(hr_per_day$hr_used == 0),]
 head(hr_per_day)
 ```
 
-```{r}
+#### Average Users Per Weekday
+
+Next, I'll summarize this information by date to determine what the average number of users each day of the week.
+
+```{r create daily_usage dataframe}
+daily_usage_1 <- hr_per_day %>% 
+  mutate(date = as.Date(date)) %>% 
+  group_by(date) %>% 
+  summarize(no_users = n_distinct(id)) %>% 
+  mutate(weekday = factor(weekdays(date), levels=c("Monday", "Tuesday", "Wednesday", "Thursday", 
+"Friday", "Saturday", "Sunday"))) %>% 
+  group_by(weekday) %>% 
+  summarize(avg_weekday_users = sum(no_users)/n_distinct(date))
+
+print(daily_usage_1)
+```
+
+\
+From this dataframe we can see that the average number of users for each weekday appears to be fairly consistent.
+
+#### Plot Days of Week vs. No. Users
+
+For ease of understanding, I'll plot these to visually see if they are similar.
+
+```{r plot no. weekday users}
+ggplot(daily_usage_1) +
+  geom_col(aes(x = weekday, y = avg_weekday_users), fill = "salmon1")+
+  labs(title = "Average Users Per Day of Week", x = "", y = "Avg No. Users")+
+  theme(axis.text = element_text(angle = 90))
+```
+
+\
+We can learn from this graph that there does not appear to be any tends in which days of the week people wear their device. They are just as likely to wear it on the weekends as during the weekdays. Any insights into usage based on weekday would require additional analysis
+
+## 4.5 Segment Analysis {#4.5}
+
+Now that we've investigated the daily and weekly usage trends for the data as a whole, I'm going to segment the users to get a better understanding about the unique utilization between types of customers.
+
+### 4.5.1 Days Per Month Wearing Device {#4.5.1}
+
+First, I'll segment our customer based on how many days a month they use the device. This will give us an idea of how many people wear it everyday compared with how many people only wear it occasionally. This information could guide marketing decisions based on targeted marketing to our current customers based on usage for upselling opportunities.
+
+For purposes of this segmentation, these are the categories I will use:
+-   "Daily Use" = device used 96% or more of days
+-   "Regular Use" = device used 60% to 96% of days
+-   "Occasional Use" = device used 20% to 60% of days
+-   "Seldom Use" = device used 0% to 20% of days
+
+#### Create dates_used Dataframe
+
+This dataframe will summarize the number of days each user wore the device during the time frame.
+
+```{r segment users by freq of use}
 total_days = as.numeric(difftime(max(sleep_step_merged$date), min(sleep_step_merged$date)))
 
 dates_used <- hr_per_day %>% 
@@ -297,8 +476,12 @@ dates_used <- dates_used %>%
 head(dates_used)
 ```
 
-```{r}
-qty_users <- n_unique(daily_activity_3_4$id)
+#### Summarize by Segment
+
+Next, I'll calculate the percentage of users that fall into each segment.
+
+```{r calc percents usage}
+qty_users <- n_unique(hourly_step_3_4$id)
 
 usage_segment_pct <- dates_used %>% 
   mutate(segment = factor(segment, levels=c("Daily", "Regular", "Occasional", "Seldom"))) %>%
@@ -309,7 +492,7 @@ usage_segment_pct <- dates_used %>%
 head(usage_segment_pct)
 ```
 
-```{r}
+```{r plot frequency of use}
 usage_segment_pct %>% 
   ggplot(aes(x = "", y = percent, fill = segment))+
   geom_bar(stat = "identity", width = 1, color = "white")+
@@ -322,42 +505,22 @@ usage_segment_pct %>%
   labs(fill = "")
 ```
 
+\
+From our table and corresponding pie chart we can see that 80% of users use the smart device on more than 60% of the days during the study. Only 6% of users wore their smart device Seldomly.
 
+### 4.5.2 Hours Per Day Wearing Device {#4.5.2}
 
-## Create dataframe showing average daily usage 
+Next, we'll look at how many hours per day customers are wearing thier devices. This will provide insight into how many people are constantly wearing it compared with people who only put it on for a short amount of time.
 
-```{r}
-daily_usage_1 <- hr_per_day %>% 
-  mutate(date = as.Date(date)) %>% 
-  group_by(date) %>% 
-  summarize(no_users = n_distinct(id)) %>% 
-  mutate(weekday = factor(weekdays(date), levels=c("Monday", "Tuesday", "Wednesday", "Thursday", 
-"Friday", "Saturday", "Sunday"))) %>% 
-  group_by(weekday) %>% 
-  summarize(avg_weekday_users = sum(no_users)/n_distinct(date))
+For this segmentation, we will use the following categories:
+-   "Always On" = device worn on average 22 or more hours per day
+-   "Usually On" = device worn between 16 and 22 hours per day
+-   "Sometimes On" = device worn between 8 and 16 hours per day
+-   "Rarely On" = device worn less than 8 hours per day
 
-print(daily_usage_1)
-```
+#### Create avg_hr_per_day Dataframe
 
-
-## Plot Days of Week vs. No. Users
-
-```{r}
-ggplot(daily_usage_1) +
-  geom_col(aes(x = weekday, y = avg_weekday_users), fill = "salmon1")+
-  labs(title = "Average Users Per Day of Week", x = "", y = "Avg No. Users")+
-  theme(axis.text = element_text(angle = 90))
-```
-We can learn from this graph that there does not appear to be any tends in which days of the week people wear their device. They are just as likely to wear it on the weekends as during the weekdays. 
-
-## Average hours worn per day
-
-"Always On" = device worn on average 22 or more hours per day
-"Usually On" = device worn between 16 and 22 hours per day
-"Sometimes On" = device worn between 8 and 16 hours per day
-"Rarely On" = device worn less than 8 hours per day 
-
-```{r}
+```{r segment hrs per day}
 avg_hr_per_day <- hr_per_day %>% 
   group_by(id) %>% 
   summarize(avg_hrs_per_day = mean(hr_used))
@@ -372,8 +535,9 @@ avg_hr_per_day <- avg_hr_per_day %>%
 head(avg_hr_per_day)
 ```
 
+#### Summarize by Segment
 
-```{r}
+```{r calc percents hr per day}
 hrs_segment_pct <- avg_hr_per_day %>% 
   mutate(segment = factor(segment, levels=c("Always On", "Usually On", "Occationally On", "Rarely On"))) %>%
   group_by(segment) %>% 
@@ -383,7 +547,7 @@ hrs_segment_pct <- avg_hr_per_day %>%
 head(hrs_segment_pct)
 ```
 
-```{r}
+```{r plot hours per day}
 hrs_segment_pct %>% 
   ggplot(aes(x = "", y = percent, fill = segment))+
   geom_bar(stat = "identity", width = 1, color = "white")+
@@ -396,10 +560,21 @@ hrs_segment_pct %>%
   labs(fill = "")
 ```
 
-## Filter Hours Worn by High and Low Usage and Plot by segments
+\
+Through this dataframe and corresponding pie chart, we can see that only 14% of users fall into the "Always On" category. This shows that most people take off their wearable device for a good chunk of the day. Additional analysis could show us what time of the day they take it off and what customers are doing while they wear the device. This information could help marketing determine the shortfalls of this product and use that information to craft a marketing strategy around how a Bellabeat product solves the issues this smart device has.
 
-```{r}
+### 4.5.3 Filter by Segments {#4.5.3}
+
+Next, I'm going to look at how the various Days-Per-Month Segments affect the Hours-Per-Day. I'm going to filter based on the Days-Per-Month Segments and plot the Hours-Per-Day Segments. This will show us how the usage changes based on each of these groups.
+
+#### Filter by "Daily" Segment
+
+This dataframe and pie chart will show us how much of the day the "Daily" Segment wears their device.
+
+```{r daily use filter, warning=FALSE}
 usage_by_id <- merge(dates_used, avg_hr_per_day, by=c("id"), all=TRUE)
+usage_by_id <- usage_by_id %>% 
+  mutate(days_used_avg = round((usage_by_id$days_used / total_days) * 30, digits = 1))
 
 daily_usage_by_id <- usage_by_id %>% 
   filter(segment.x == "Daily")
@@ -413,7 +588,9 @@ daily_usage_by_id <- daily_usage_by_id %>%
   mutate(label = paste(percent, "%", sep = ""))
 
 head(daily_usage_by_id)
+```
 
+```{r daily segment, echo=TRUE, eval=FALSE}
 daily_usage_by_id %>% 
   ggplot(aes(x = "", y = percent, fill = segment.y))+
   geom_bar(stat = "identity", width = 1, color = "white")+
@@ -426,7 +603,11 @@ daily_usage_by_id %>%
   labs(fill = "")
 ```
 
-```{r}
+#### Filter by "Regular" Segment
+
+This dataframe and pie chart will show us how much of the day the "Regular" Segment wears their device.
+
+```{r regular use filter, warning=FALSE}
 reg_usage_by_id <- usage_by_id %>% 
   filter(segment.x == "Regular")
 
@@ -439,7 +620,9 @@ reg_usage_by_id <- reg_usage_by_id %>%
   mutate(label = paste(percent, "%", sep = ""))
 
 head(reg_usage_by_id)
+```
 
+```{r reg segment, echo=TRUE, eval=FALSE}
 reg_usage_by_id %>% 
   ggplot(aes(x = "", y = percent, fill = segment.y))+
   geom_bar(stat = "identity", width = 1, color = "white")+
@@ -452,7 +635,11 @@ reg_usage_by_id %>%
   labs(fill = "")
 ```
 
-```{r}
+#### Filter by "Occasional" Segment
+
+This dataframe and pie chart will show us how much of the day the "Occasional" Segment wears their device.
+
+```{r occasional use filter, warning=FALSE}
 occ_usage_by_id <- usage_by_id %>% 
   filter(segment.x == "Occasional")
 
@@ -465,7 +652,9 @@ occ_usage_by_id <- occ_usage_by_id %>%
   mutate(label = paste(percent, "%", sep = ""))
 
 head(occ_usage_by_id)
+```
 
+```{r occ segment, echo=TRUE, eval=FALSE}
 occ_usage_by_id %>% 
   ggplot(aes(x = "", y = percent, fill = segment.y))+
   geom_bar(stat = "identity", width = 1, color = "white")+
@@ -474,11 +663,15 @@ occ_usage_by_id %>%
   ggtitle("Average Hours Wearing Device Each Day for Occational Users") +
   theme(plot.title = element_text(hjust = 0.5))+
   geom_text(aes(label = label), position = position_stack(vjust = .6))+
-  scale_fill_manual(values = c("salmon1","goldenrod2","darkslateblue", "orchid3"))+
+  scale_fill_manual(values = c("goldenrod2","darkslateblue", "orchid3"))+
   labs(fill = "")
 ```
 
-```{r}
+#### Filter by "Seldom" Segment
+
+This dataframe and pie chart will show us how much of the day the "Seldom" Segment wears their device.
+
+```{r seldom use filter, warning=FALSE}
 sel_usage_by_id <- usage_by_id %>% 
   filter(segment.x == "Seldom")
 
@@ -491,7 +684,9 @@ sel_usage_by_id <- sel_usage_by_id %>%
   mutate(label = paste(percent, "%", sep = ""))
 
 head(sel_usage_by_id)
+```
 
+```{r seldom pie, echo=TRUE, eval=FALSE}
 sel_usage_by_id %>% 
   ggplot(aes(x = "", y = percent, fill = segment.y))+
   geom_bar(stat = "identity", width = 1, color = "white")+
@@ -500,6 +695,126 @@ sel_usage_by_id %>%
   ggtitle("Average Hours Wearing Device Each Day for Seldom Users") +
   theme(plot.title = element_text(hjust = 0.5))+
   geom_text(aes(label = label), position = position_stack(vjust = .6))+
-  scale_fill_manual(values = c("salmon1","goldenrod2","darkslateblue", "orchid3"))+
+  scale_fill_manual(values = c("orchid3"))+
   labs(fill = "")
 ```
+
+### Filtered Charts
+
+```{r echo=FALSE, out.width="350px"}
+knitr::include_graphics("daily_users.png")
+```
+
+```{r echo=FALSE, out.width="350px"}
+knitr::include_graphics("reg_users.png")
+```
+
+```{r echo=FALSE, out.width="350px"}
+knitr::include_graphics("occ_users.png")
+```
+
+```{r echo=FALSE, out.width="350px"}
+knitr::include_graphics("seldom_users.png")
+```
+
+\
+When we segment the users based on how many days in the month they wear their device, an interesting trend emerges. We can clearly see that as the number of days a user wears the device decreases, so too does the amount of time they wear it each day.
+
+Additionally, we can see from these four pie charts that the only users who "Rarely" wear their device are also the "Seldom" users. In clearly language, this means that the people who only put their device on a few days also only wear their device for a short time each day. When they remember to put it on, they only leave it on for a little bit.
+
+### 4.5.4 Plot Segments {#4.5.4}
+
+Now that we've looked at this information in pie chart form, let's see if we can learn anything new by plotting it out on a scatter plot.
+
+#### Plot All Variables
+
+On the x axis is Average No Days Worn Per Month and on the y axis is Average Hours Worn Per Day.
+
+This will show us visually how these two variable correlate.
+
+```{r}
+usage_by_id <- usage_by_id %>% 
+  mutate(segment.y = factor(segment.y, levels=c("Always On", "Usually On", "Occationally On", "Rarely On")))
+  
+
+ggplot(usage_by_id, aes(days_used_avg, avg_hrs_per_day))+
+  geom_point(aes(color = segment.y)) +
+  geom_smooth(method = lm, se = FALSE, color = "gray") +
+  scale_color_manual(values = c("salmon1","goldenrod2","darkslateblue", "orchid3"))+
+  labs(title = "Avg Days Per Month v. Avg Hours Per Day", x = "Avg Days Per Month", y = "Avg Hours Per Day", col = "Hr Per Day Segment")
+```
+
+\
+We can see from this plot that there is a strong correlation between these two variables.
+
+#### Use facet_wrap To Look at Segments Separately
+
+Next, let's look at each of the Avg Days Per Month Segments separately.
+
+```{r}
+ggplot(usage_by_id, aes(days_used_avg, avg_hrs_per_day))+
+  geom_point(aes(color = segment.y)) +
+  geom_smooth(method = lm, se = FALSE, color = "gray") +
+  scale_color_manual(values = c("salmon1","goldenrod2","darkslateblue", "orchid3"))+
+  labs(title = "Avg Days Per Month v. Avg Hours Per Day", x = "Avg Days Per Month", y = "Avg Hours Per Day", col = "Hr Per Day Segment")+
+  facet_wrap(~segment.x)
+```
+
+\
+Here we can see the different segments broken out. We see a positive correlations for the "Regular" and "Occasional" users and a negative correlation for the "Daily" users.
+
+#### Remove "Seldom" from Plot
+
+From looking at the plot, we can see that there are two outlier data points in the "Seldom" segment. Let's drop those from the plot and see how that affects the trend line.
+
+```{r}
+usage_by_id_drop_seldom <- subset(usage_by_id, segment.x != "Seldom")
+
+ggplot(usage_by_id_drop_seldom, aes(days_used_avg, avg_hrs_per_day))+
+  geom_point(aes(color = segment.y)) +
+  scale_color_manual(values = c("salmon1","goldenrod2","darkslateblue"))+
+  geom_smooth(method = lm, se = FALSE, color = "gray") +
+  labs(title = "Avg Days Per Month v. Avg Hours Per Day", x = "Avg Days Per Month", y = "Avg Hours Per Day", col = "Hr Per Day Segment")
+```
+
+\
+Overall we still see a positive correlation, but the slope of the line is less when we drop the "Seldom" segment.
+
+#### Trendlines by Hrs Per Day Segments
+
+Alternatively, let's look at how the trendlines change when we segement by Hours Per Day instead of Days Per Month.
+
+```{r}
+ggplot(usage_by_id_drop_seldom, aes(days_used_avg, avg_hrs_per_day, color = segment.y))+
+  geom_point() +
+  scale_color_manual(values = c("salmon1","goldenrod2","darkslateblue"))+
+  geom_smooth(method = lm, se = FALSE) +
+  labs(title = "Avg Days Per Month v. Avg Hours Per Day", x = "Avg Days Per Month", y = "Avg Hours Per Day", col = "Hr Per Day Segment")
+```
+
+\
+Here we can see that the "Usually On" segment has a near 0 correlation. This means that people who wear their device 16 to 22 hours per day are just as likely to wear it Occasionally as they are to wear it Daily. We see a positive correlation in the "Always On" and "Occasionally On" segments.
+
+# 5.0 Recommendations {#5.0}
+
+
+## Insights
+Our analysis has provided us with interesting insights into the usage of smart devices. 
+
+First, we learned that users are more likely to track their steps with the smart device than they are to track their sleep. We calculated that on average 89% of users were using the device to track steps each day. Meanwhile, only 41% of users were tracking their sleep. We saw this visually in our charts that looked at the number of customers using either device each hour of the day. Additionally we learned that there is no difference between usage based on the day of the week. 
+
+Second, we learned that the vast majority of users wore their device on a regular basis. We can assume that they enjoy the data they learn from wearing their device and they feel comfortable having it on them. Our calculations showed that 40% of users wore their device on 96% or more of the days tracked. An additional 40% wore their device on 60% or more of the days. This shows us that these devices are a regular part of 80% of customers' routines and they enjoy having it as a daily part of their life. 
+
+Third, we looked at how many hours per day people were choosing to wear their device. Here we learned that 94% of people, when they remember to put it on, wear it for 8 hours or more each day. We can see here that if users get the device on their body, they are likely to wear it for a long period of time. This also speaks to the ease of use and comfortability that people have with their device. It also indicates that people do not put their device on when they are doing a specific activity, like working out, and then take it off afterwards. This device becomes a part of their life for the day. 
+
+Lastly, we discovered a correlation between the number of days a device is worn and the number of hours per day it is worn. This means that people who wear their device frequently are also likely to wear it for long periods of time each day. Interestingly, there was no correlation within the "Usually On" group. This means people who typically wear their device for 16 to 22 hours per day are no more likely to wear their device a greater number of days out of the month. There were a couple people who didn't wear their device a lot of days, but when they put it on they wore it for more than 16 hours. 
+
+## Conclusion 
+Based on our analysis of the data, I would like to provide the following recommendations for the marketing team. These recommendations are focused around increasing sales of the fitness tracking devices. 
+
+-   Our analysis shows that people really enjoy wearing their smart devices. We see this because 80% of users wore their device 60% or more of the days. The marketing team can use this information to craft a digital advertisement campaign around the high usage percentages. People may feel reluctant to purchase a device because they do not know if they will use it regularly. We see from our analysis that this isn't a concern for most customers. Consumers will be more likely to purchase if they feel confident that they will use the device and benefit from it.
+-   We see that once people put their smart device on for the day, they will wear it for a long period of time. The marketing team can use this knowledge to highlight the easy of use for the IVY+ and Leaf devices. Bellabeat's devices have a much longer battery life than the competition. Therefore, there isn't a reason to take the device off every day to charge. Without taking it off, customers are likely to wear it more days and for longer periods of time, seeing greater insights from their data. 
+-   A large percentage (40%) of people wore the device on 96% or more of the days. However, there were also 40% of people who only wore it 60% to 96% of the days. This shows us that there is a large segment of the customers that enjoy wearing it and like to wear it but do not wear it in all situations. The reasoning for this is unclear at this time, but they may be choosing to take it off because it would not be appropriate to wear a fitness device in certain situations. If this is the case, Bellabeat can excel by marketing to the sleek design and jewelry-like feel of them means that people can wear them in even more situations. 
+
+With the help of these analytic insights, Bellabeat's marketing team will be well positioned to craft their marketing strategy to be inline with the current usage of smart devices. 
+
